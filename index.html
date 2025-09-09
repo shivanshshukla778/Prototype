@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heritage Horizons AI</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fc;
+            color: #1a202c;
+        }
+        .container-padding {
+            padding: 1.5rem;
+        }
+        @media (min-width: 768px) {
+            .container-padding {
+                padding: 2.5rem;
+            }
+        }
+        .cta-btn {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .cta-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        .card-hover-effect {
+            transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+        }
+        .card-hover-effect:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+        }
+        .loader {
+            border-top-color: #3b82f6;
+            animation: spin 1s infinite linear;
+        }
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        .alert-modal {
+            animation: fadeInOut 5s forwards;
+        }
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(-20px); }
+            10% { opacity: 1; transform: translateY(0); }
+            90% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-20px); }
+        }
+        #chat-window {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            background-color: #f9fafb;
+        }
+        .user-message {
+            background-color: #3b82f6;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 1rem;
+            max-width: 80%;
+            margin-left: auto;
+            margin-bottom: 0.5rem;
+        }
+        .ai-message {
+            background-color: #e2e8f0;
+            color: #1a202c;
+            padding: 0.5rem 1rem;
+            border-radius: 1rem;
+            max-width: 80%;
+            margin-right: auto;
+            margin-bottom: 0.5rem;
+        }
+        #alert-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .alert-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 400px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .close-btn {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close-btn:hover,
+        .close-btn:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 text-gray-800">
+
+    <!-- Custom Alert Modal (replaces alert()) -->
+    <div id="alert-modal" class="alert-modal">
+        <div class="alert-content">
+            <span class="close-btn">&times;</span>
+            <p id="alert-message-text"></p>
+        </div>
+    </div>
+    
+    <!-- Header -->
+    <header class="bg-white shadow-lg p-6 rounded-b-xl sticky top-0 z-50">
+        <div class="container-padding flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                </svg>
+                <h1 class="text-3xl font-bold text-gray-800">Heritage Horizons</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-2 bg-gray-100 p-2 rounded-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-yellow-500" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                    </svg>
+                    <span id="points-display" class="font-semibold text-lg">0</span>
+                </div>
+                <div id="user-id-display" class="bg-gray-100 p-2 rounded-lg text-sm font-mono truncate max-w-[150px]"></div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container-padding">
+
+        <!-- 3D Globe Section -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-bold text-center mb-6 text-indigo-600">Explore the World in 3D</h2>
+            <div id="globe-container" class="w-full h-[500px] bg-gray-200 rounded-xl shadow-inner overflow-hidden"></div>
+        </section>
+
+        <!-- Main Content -->
+        <section class="grid md:grid-cols-2 gap-8 lg:gap-12">
+
+            <!-- AI Tour Guide Chatbot -->
+            <div class="bg-white p-6 rounded-xl shadow-lg card-hover-effect">
+                <h2 class="text-3xl font-bold mb-6 text-center">AI Tour Guide</h2>
+                <div id="chat-window" class="mb-4">
+                    <div class="ai-message">Hello! I'm your AI tour guide. How can I help you plan your next adventure?</div>
+                </div>
+                <div class="flex space-x-4 mb-4">
+                    <select id="language-select" class="flex-grow rounded-lg border-2 border-gray-300 p-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="en-US">English</option>
+                        <option value="es-ES">Spanish</option>
+                        <option value="fr-FR">French</option>
+                        <option value="de-DE">German</option>
+                        <option value="ja-JP">Japanese</option>
+                        <option value="hi-IN">Hindi</option>
+                    </select>
+                    <select id="voice-select" class="flex-grow rounded-lg border-2 border-gray-300 p-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="Zephyr">Zephyr (Bright)</option>
+                        <option value="Puck">Puck (Upbeat)</option>
+                        <option value="Charon">Charon (Informative)</option>
+                        <option value="Kore">Kore (Firm)</option>
+                        <option value="Fenrir">Fenrir (Excitable)</option>
+                        <option value="Leda">Leda (Youthful)</option>
+                    </select>
+                </div>
+                <div class="flex">
+                    <input type="text" id="user-input" placeholder="Ask me anything..." class="flex-grow rounded-l-lg border-2 border-gray-300 p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <button id="send-btn" class="bg-indigo-600 text-white p-3 rounded-r-lg hover:bg-indigo-700 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M2.01 21L23 12L2.01 3L2 10L17 12L2 14Z" />
+                        </svg>
+                    </button>
+                    <button id="tts-btn" class="ml-2 bg-indigo-600 text-white p-3 rounded-lg hover:bg-indigo-700 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M14.5 7.5L13 9L15 11H9V15L11 13L12.5 14.5L10 17L12 19H9V21H15V19L17 17L15 15H17V11L19 9L17.5 7.5L20 5V3H14L12 5H9V7H12L14.5 7.5ZM2 21V3H8V21H2Z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Itinerary Planner and Saved Itineraries -->
+            <div class="space-y-8">
+                <!-- Itinerary Planner -->
+                <div class="bg-white p-6 rounded-xl shadow-lg card-hover-effect">
+                    <h2 class="text-3xl font-bold mb-6 text-center">Plan Your Itinerary</h2>
+                    <form id="itinerary-form" class="space-y-4">
+                        <div>
+                            <label for="destination" class="block text-sm font-medium text-gray-700">Destination</label>
+                            <input type="text" id="destination" name="destination" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g., Paris, France" required>
+                        </div>
+                        <div>
+                            <label for="travel-dates" class="block text-sm font-medium text-gray-700">Travel Dates</label>
+                            <input type="text" id="travel-dates" name="travel-dates" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g., Oct 15 - Oct 20, 2024">
+                        </div>
+                        <div>
+                            <label for="itinerary-title" class="block text-sm font-medium text-gray-700">Itinerary Title</label>
+                            <input type="text" id="itinerary-title" name="itinerary-title" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g., A week in Paris" required>
+                        </div>
+                        <div>
+                            <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
+                            <textarea id="description" name="description" rows="3" class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g., Visiting museums, local markets"></textarea>
+                        </div>
+                        <button type="submit" class="w-full bg-indigo-600 text-white font-semibold py-3 px-8 rounded-lg shadow-md hover:bg-indigo-700">Save Itinerary</button>
+                    </form>
+                </div>
+
+                <!-- Saved Itineraries List -->
+                <div class="p-6 bg-gray-100 rounded-xl shadow-inner">
+                    <h3 class="text-2xl font-semibold mb-4 text-gray-800">Your Saved Itineraries</h3>
+                    <ul id="itineraries-list" class="space-y-4">
+                        <!-- Itineraries will be dynamically added here by Firebase -->
+                        <li class="text-gray-500">No itineraries saved yet. Start planning!</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Safety Alert Modal (custom, not alert()) -->
+        <div id="safety-alert" class="fixed bottom-4 right-4 z-50 p-4 rounded-lg shadow-xl bg-red-500 text-white hidden transform transition-transform duration-300 ease-in-out">
+            <p id="safety-alert-message" class="font-medium"></p>
+        </div>
+        
+    </main>
+
+    <!-- Footer -->
+    <footer class="w-full bg-gray-800 text-white p-6 text-center mt-12 rounded-t-xl">
+        <p>&copy; 2024 Heritage Horizons. All rights reserved.</p>
+    </footer>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc, addDoc, setDoc, onSnapshot, collection, query, where, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
+
+    // This is a global variable provided by the Canvas environment.
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+    
+    let app, db, auth;
+    let userId = null;
+    let points = 0;
+    let isAuthReady = false;
+
+    // Custom modal instead of alert()
+    const alertModal = document.getElementById('alert-modal');
+    const alertMessageText = document.getElementById('alert-message-text');
+    const closeBtn = document.querySelector('.close-btn');
+
+    function showCustomAlert(message) {
+        alertMessageText.textContent = message;
+        alertModal.style.display = 'block';
+    }
+
+    closeBtn.onclick = function() {
+        alertModal.style.display = 'none';
+    }
+    window.onclick = function(event) {
+        if (event.target == alertModal) {
+            alertModal.style.display = 'none';
+        }
+    }
+
+    // Initialize Firebase
+    const initFirebase = async () => {
+        try {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            getAnalytics(app);
+            console.log("Firebase Initialized.");
+
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    userId = user.uid;
+                    document.getElementById('user-id-display').textContent = `User: ${userId}`;
+                    isAuthReady = true;
+                    initFirestoreListeners();
+                } else {
+                    try {
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    } catch (error) {
+                        console.error("Error during authentication:", error);
+                    }
+                }
+            });
+        } catch (error) {
+            console.error("Firebase initialization error:", error);
+        }
+    };
+
+    // Document references
+    const userDocRef = () => doc(db, `artifacts/${appId}/users/${userId}/profile/data`);
+    const itinerariesCollectionRef = () => collection(db, `artifacts/${appId}/users/${userId}/itineraries`);
+    const publicDataRef = () => collection(db, `artifacts/${appId}/public/data/`);
+
+    const updatePointsUI = () => {
+        document.getElementById('points-display').textContent = points;
+    };
+
+    const addPoints = async (amount) => {
+        if (!isAuthReady) return;
+        try {
+            const userRef = userDocRef();
+            const docSnap = await getDoc(userRef);
+            let currentPoints = docSnap.exists() ? (docSnap.data().points || 0) : 0;
+            currentPoints += amount;
+            await setDoc(userRef, { points: currentPoints }, { merge: true });
+            console.log("Points updated:", currentPoints);
+        } catch (error) {
+            console.error("Error updating points:", error);
+        }
+    };
+
+    const initFirestoreListeners = () => {
+        if (!isAuthReady || !userId) {
+            console.warn("Firestore listeners not initialized: Auth not ready or userId is null.");
+            return;
+        }
+
+        // User Profile Listener
+        onSnapshot(userDocRef(), (docSnapshot) => {
+            if (docSnapshot.exists()) {
+                const data = docSnapshot.data();
+                points = data.points || 0;
+                updatePointsUI();
+            } else {
+                console.log("User data document not found, creating a new one.");
+                setDoc(userDocRef(), {
+                    points: 0,
+                }, { merge: true }).then(() => {
+                    console.log("Initial user data saved.");
+                }).catch(error => {
+                    console.error("Error creating initial user data:", error);
+                });
+            }
+        }, (error) => {
+            console.error("Error listening to user data:", error);
+        });
+
+        // Itineraries Listener
+        onSnapshot(itinerariesCollectionRef(), (querySnapshot) => {
+            const itinerariesList = document.getElementById('itineraries-list');
+            itinerariesList.innerHTML = '';
+            if (querySnapshot.empty) {
+                itinerariesList.innerHTML = '<li class="text-gray-500">No itineraries saved yet. Start planning!</li>';
+                return;
+            }
+
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                const li = document.createElement('li');
+                li.className = 'bg-white p-4 rounded-xl shadow-md flex justify-between items-center';
+                li.innerHTML = `
+                    <div>
+                        <h4 class="text-lg font-semibold text-gray-800">${data.title}</h4>
+                        <p class="text-sm text-gray-500">${data.destination}</p>
+                        <p class="text-xs text-gray-400 mt-1">${data.description}</p>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button data-id="${doc.id}" class="delete-btn bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.728-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
+                `;
+                itinerariesList.appendChild(li);
+            });
+
+            document.querySelectorAll('.delete-btn').forEach(button => {
+                button.addEventListener('click', async (e) => {
+                    const id = e.currentTarget.dataset.id;
+                    if (id) {
+                        try {
+                            await deleteDoc(doc(itinerariesCollectionRef(), id));
+                            showCustomAlert("Itinerary deleted successfully!");
+                            addPoints(-5);
+                        } catch (error) {
+                            console.error("Error deleting document:", error);
+                            showCustomAlert("Error deleting itinerary. Please try again.");
+                        }
+                    }
+                });
+            });
+        }, (error) => {
+            console.error("Error listening to itineraries:", error);
+        });
+    };
+
+    // Itinerary Form Submission
+    document.getElementById('itinerary-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!isAuthReady) {
+            showCustomAlert("Please wait for authentication to complete before saving.");
+            return;
+        }
+
+        const title = document.getElementById('itinerary-title').value;
+        const destination = document.getElementById('destination').value;
+        const dates = document.getElementById('travel-dates').value;
+        const description = document.getElementById('description').value;
+
+        try {
+            await addDoc(itinerariesCollectionRef(), {
+                title,
+                destination,
+                dates,
+                description,
+                createdAt: new Date(),
+                userId: userId
+            });
+            showCustomAlert("Itinerary saved successfully!");
+            addPoints(10);
+            document.getElementById('itinerary-form').reset();
+        } catch (error) {
+            console.error("Error saving itinerary:", error);
+            showCustomAlert("Error saving itinerary. Please try again.");
+        }
+    });
+
+    // Safety Alert
+    window.triggerSafetyAlert = () => {
+        const alertBox = document.getElementById('safety-alert');
+        const alertMessage = document.getElementById('safety-alert-message');
+        const messages = [
+            "Heavy rain advisory issued for your travel route.",
+            "Potential traffic congestion ahead. Consider an alternate route.",
+            "Alert: Unexpected road closure ahead.",
+            "Warning: High winds expected in your destination city."
+        ];
+        alertMessage.textContent = messages[Math.floor(Math.random() * messages.length)];
+        alertBox.classList.remove('hidden');
+        setTimeout(() => {
+            alertBox.classList.add('hidden');
+        }, 5000);
+    };
+
+    // AI Tour Guide functionality with Gemini API
+    const userHistory = [];
+    const chatWindow = document.getElementById('chat-window');
+    const userInput = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+    const ttsBtn = document.getElementById('tts-btn');
+    const languageSelect = document.getElementById('language-select');
+    const voiceSelect = document.getElementById('voice-select');
+
+    const GEMINI_API_KEY = "AIzaSyAA6rr7pJ3CmL7pK-R1yWEhlU7U0YTSFno"; // IMPORTANT: Replace with your actual API key
+
+    async function callGeminiAPI(text, isTTS = false, voiceName, langCode) {
+        let apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
+        let payload;
+
+        if (isTTS) {
+             apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/text-to-speech:synthesizeText?key=${GEMINI_API_KEY}`;
+             payload = {
+                 "input": {
+                     "text": text
+                 },
+                 "voice": {
+                     "name": `voices/${voiceName}`
+                 },
+                 "audioConfig": {
+                     "audioEncoding": "LINEAR16"
+                 }
+             };
+        } else {
+            payload = {
+                contents: userHistory.concat([{ parts: [{ text: text }] }]),
+                tools: [{ "google_search": {} }],
+            };
+        }
+
+        let response;
+        try {
+            response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            return await response.json();
+        } catch (error) {
+            console.error("API call error:", error);
+            return { error: true, message: "Failed to connect to the AI service." };
+        }
+    }
+
+    async function sendMessage() {
+        const text = userInput.value.trim();
+        if (text === '') return;
+
+        displayMessage(text, 'user-message');
+        userInput.value = '';
+        sendBtn.disabled = true;
+
+        const aiResponse = await callGeminiAPI(text);
+
+        if (aiResponse.error) {
+            displayMessage("Sorry, I'm having trouble right now. Please try again later.", 'ai-message');
+        } else {
+            let responseText = '';
+            let sources = [];
+
+            if (aiResponse.candidates && aiResponse.candidates.length > 0 && aiResponse.candidates[0].content && aiResponse.candidates[0].content.parts && aiResponse.candidates[0].content.parts.length > 0) {
+                responseText = aiResponse.candidates[0].content.parts[0].text;
+                const groundingMetadata = aiResponse.candidates[0].groundingMetadata;
+                if (groundingMetadata && groundingMetadata.groundingAttributions) {
+                    sources = groundingMetadata.groundingAttributions.map(attribution => ({
+                        uri: attribution.web?.uri,
+                        title: attribution.web?.title,
+                    })).filter(source => source.uri && source.title);
+                }
+            } else {
+                responseText = "I couldn't generate a response. Please try again.";
+            }
+
+            displayMessage(responseText, 'ai-message');
+            addPoints(5); // Reward points for using AI
+
+            if (sources.length > 0) {
+                const sourceHtml = sources.map(source => `<a href="${source.uri}" target="_blank" class="text-blue-500 hover:underline">${source.title}</a>`).join(', ');
+                displayMessage(`Sources: ${sourceHtml}`, 'ai-message');
+            }
+            
+            userHistory.push({ role: "user", parts: [{ text: text }] });
+            userHistory.push({ role: "model", parts: [{ text: responseText }] });
+        }
+        sendBtn.disabled = false;
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+
+    async function textToSpeech() {
+        const text = userInput.value.trim();
+        if (text === '') {
+            showCustomAlert("Please enter text to speak.");
+            return;
+        }
+
+        const voiceName = voiceSelect.value;
+        const response = await callGeminiAPI(text, true, voiceName, null);
+
+        if (response.error || !response.audioContent) {
+            showCustomAlert(response.message || "Failed to generate speech. Please try again.");
+            return;
+        }
+        
+        const audioData = response.audioContent;
+
+        if (!audioData) {
+            showCustomAlert("Invalid audio data received.");
+            return;
+        }
+        const sampleRate = 24000; // The text-to-speech model returns audio at 24000 Hz
+
+        // Helper functions to convert PCM to WAV
+        function base64ToArrayBuffer(base64) {
+            const binary_string = window.atob(base64);
+            const len = binary_string.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binary_string.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        function pcmToWav(pcmData, sampleRate) {
+            const buffer = new ArrayBuffer(44 + pcmData.length * 2);
+            const view = new DataView(buffer);
+            let offset = 0;
+
+            function writeString(str) {
+                for (let i = 0; i < str.length; i++) {
+                    view.setUint8(offset++, str.charCodeAt(i));
+                }
+            }
+
+            function writeUint32(val) {
+                view.setUint32(offset, val, true);
+                offset += 4;
+            }
+
+            function writeUint16(val) {
+                view.setUint16(offset, val, true);
+                offset += 2;
+            }
+
+            writeString('RIFF');
+            writeUint32(36 + pcmData.length * 2);
+            writeString('WAVE');
+            writeString('fmt ');
+            writeUint32(16);
+            writeUint16(1); // Audio format 1 is PCM
+            writeUint16(1); // Mono
+            writeUint32(sampleRate);
+            writeUint32(sampleRate * 2); // Byte rate
+            writeUint16(2); // Block align
+            writeUint16(16); // Bits per sample
+            writeString('data');
+            writeUint32(pcmData.length * 2);
+
+            for (let i = 0; i < pcmData.length; i++) {
+                view.setInt16(offset, pcmData[i], true);
+                offset += 2;
+            }
+
+            return new Blob([view], { type: 'audio/wav' });
+        }
+
+        const pcmData = new Int16Array(base64ToArrayBuffer(audioData).slice(0, Math.floor(base64ToArrayBuffer(audioData).byteLength / 2) * 2));
+        const wavBlob = pcmToWav(pcmData, sampleRate);
+        const audioUrl = URL.createObjectURL(wavBlob);
+        
+        const audio = new Audio(audioUrl);
+        audio.play();
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    ttsBtn.addEventListener('click', textToSpeech);
+    userInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            sendMessage();
+        }
+    });
+
+    function displayMessage(message, className) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `${className} p-2 rounded-lg max-w-sm break-words`;
+        if (className === 'ai-message') {
+            messageDiv.innerHTML = message;
+        } else {
+            messageDiv.textContent = message;
+        }
+        chatWindow.appendChild(messageDiv);
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+
+    // 3D Globe with Three.js and Cannon.js
+    let scene, camera, renderer, globe;
+    let world, groundBody;
+    let mouse = new THREE.Vector2();
+    let isDragging = false;
+    let rotationSpeed = 0.005;
+
+    function init3D() {
+        const container = document.getElementById('globe-container');
+
+        // Scene
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf7f9fc);
+
+        // Camera
+        camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+        camera.position.z = 2.5;
+
+        // Renderer
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(renderer.domElement);
+
+        // Lights
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(5, 3, 5);
+        scene.add(directionalLight);
+
+        // Globe
+        const geometry = new THREE.SphereGeometry(1, 64, 64);
+        const material = new THREE.MeshPhongMaterial({ color: 0x4a7cff, transparent: true, opacity: 0.8 });
+        globe = new THREE.Mesh(geometry, material);
+        scene.add(globe);
+
+        // Physics
+        world = new CANNON.World();
+        world.gravity.set(0, 0, 0); // No gravity in this use case
+
+        const globeShape = new CANNON.Sphere(1);
+        const globeBody = new CANNON.Body({ mass: 0 });
+        globeBody.addShape(globeShape);
+        world.addBody(globeBody);
+
+        // Event Listeners for mouse interaction
+        container.addEventListener('mousedown', onMouseDown);
+        container.addEventListener('mousemove', onMouseMove);
+        container.addEventListener('mouseup', onMouseUp);
+        container.addEventListener('mouseleave', onMouseUp);
+        container.addEventListener('touchstart', onTouchStart, { passive: false });
+        container.addEventListener('touchmove', onTouchMove, { passive: false });
+        container.addEventListener('touchend', onTouchEnd, { passive: false });
+
+        window.addEventListener('resize', onResize);
+    }
+
+    function onMouseDown(event) {
+        isDragging = true;
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    }
+
+    function onMouseMove(event) {
+        if (!isDragging) return;
+        const newMouseX = (event.clientX / window.innerWidth) * 2 - 1;
+        const newMouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+        
+        const deltaX = newMouseX - mouse.x;
+        const deltaY = newMouseY - mouse.y;
+
+        globe.rotation.y += deltaX * Math.PI;
+        globe.rotation.x += deltaY * Math.PI;
+
+        mouse.x = newMouseX;
+        mouse.y = newMouseY;
+    }
+
+    function onMouseUp() {
+        isDragging = false;
+    }
+
+    function onTouchStart(event) {
+        if (event.touches.length === 1) {
+            isDragging = true;
+            mouse.x = (event.touches[0].clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.touches[0].clientY / window.innerHeight) * 2 + 1;
+        }
+        event.preventDefault();
+    }
+
+    function onTouchMove(event) {
+        if (!isDragging || event.touches.length !== 1) return;
+        const newMouseX = (event.touches[0].clientX / window.innerWidth) * 2 - 1;
+        const newMouseY = -(event.touches[0].clientY / window.innerHeight) * 2 + 1;
+        
+        const deltaX = newMouseX - mouse.x;
+        const deltaY = newMouseY - mouse.y;
+
+        globe.rotation.y += deltaX * Math.PI;
+        globe.rotation.x += deltaY * Math.PI;
+
+        mouse.x = newMouseX;
+        mouse.y = newMouseY;
+        event.preventDefault();
+    }
+
+    function onTouchEnd() {
+        isDragging = false;
+    }
+    
+    function onResize() {
+        const container = document.getElementById('globe-container');
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        
+        if (!isDragging) {
+            globe.rotation.y += rotationSpeed;
+        }
+
+        world.step(1 / 60);
+
+        renderer.render(scene, camera);
+    }
+
+    // Wait for the window to load before initializing everything
+    window.onload = function() {
+        initFirebase();
+        init3D();
+        animate();
+        setInterval(triggerSafetyAlert, 30000); // Trigger a random safety alert every 30 seconds
+    };
+</script>
+
+</body>
+</html>
